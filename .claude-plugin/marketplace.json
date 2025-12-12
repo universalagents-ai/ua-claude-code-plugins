@@ -1,0 +1,16 @@
+{
+  "name": "ua-plugins",
+  "owner": {
+    "name": "Universal Agents",
+    "email": "team@universalagents.ai"
+  },
+  "plugins": [
+    {
+      "name": "prototype-mode",
+      "source": "./prototype-mode",
+      "description": "Safe prototyping environment that focuses exclusively on frontend UI/UX development with mock data, blocking backend operations and external integrations",
+      "version": "0.1.0",
+      "keywords": ["prototyping", "frontend", "ui", "ux", "mock-data", "design", "safety"]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# Local configuration files (user-specific, not checked into git)
+.claude/*.local.md
+.claude/prototyping-mode.local.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

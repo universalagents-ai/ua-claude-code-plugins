@@ -1,0 +1,10 @@
+{
+  "name": "prototype-mode",
+  "version": "0.1.0",
+  "description": "Safe prototyping environment that focuses exclusively on frontend UI/UX development with mock data, blocking backend operations and external integrations",
+  "author": {
+    "name": "Ollie",
+    "email": "ollie@example.com"
+  },
+  "keywords": ["prototyping", "frontend", "ui", "ux", "mock-data", "design", "safety"]
+}
