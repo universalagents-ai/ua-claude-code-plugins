@@ -1,0 +1,11 @@
+{
+  "name": "feature-harness-mvp",
+  "version": "0.1.0",
+  "description": "MVP prototype to validate Feature Harness pure plugin approach - tests MCP access, artifact context, and autonomy",
+  "author": {
+    "name": "Sprocket UX Limited",
+    "email": "team@sprocket.com"
+  },
+  "keywords": ["mvp", "testing", "validation", "feature-harness"],
+  "license": "Private"
+}

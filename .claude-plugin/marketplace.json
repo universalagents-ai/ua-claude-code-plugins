@@ -11,6 +11,13 @@
       "description": "Safe prototyping environment that focuses exclusively on frontend UI/UX development with mock data, blocking backend operations and external integrations",
       "version": "0.1.0",
       "keywords": ["prototyping", "frontend", "ui", "ux", "mock-data", "design", "safety"]
+    },
+    {
+      "name": "feature-harness-mvp",
+      "source": "./feature-harness-mvp",
+      "description": "MVP prototype to validate Feature Harness pure plugin approach - tests MCP access, artifact context, and autonomy",
+      "version": "0.1.0",
+      "keywords": ["mvp", "testing", "validation", "feature-harness", "mcp", "linear", "playwright"]
     }
   ]
 }
