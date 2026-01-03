@@ -1,0 +1,23 @@
+{
+  "name": "feature-harness",
+  "version": "1.0.0",
+  "description": "Autonomous feature implementation system with multi-session context management. Design features with spec-writer, implement with autonomous agents, track with Linear integration.",
+  "author": {
+    "name": "Sprocket UX Limited",
+    "email": "team@sprocket.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sprocket/interplay"
+  },
+  "keywords": [
+    "feature-development",
+    "linear",
+    "autonomous",
+    "testing",
+    "playwright",
+    "spec-writing",
+    "workflow"
+  ],
+  "license": "Private"
+}

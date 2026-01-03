@@ -13,6 +13,13 @@
       "keywords": ["prototyping", "frontend", "ui", "ux", "mock-data", "design", "safety"]
     },
     {
+      "name": "feature-harness",
+      "source": "./feature-harness",
+      "description": "Autonomous feature implementation system with multi-session context management. Design features with spec-writer, implement with autonomous agents, track with Linear integration.",
+      "version": "1.0.0",
+      "keywords": ["feature-development", "linear", "autonomous", "testing", "playwright", "spec-writing", "workflow", "multi-session"]
+    },
+    {
       "name": "feature-harness-mvp",
       "source": "./feature-harness-mvp",
       "description": "MVP prototype to validate Feature Harness pure plugin approach - tests MCP access, artifact context, and autonomy",

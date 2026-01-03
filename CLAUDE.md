@@ -89,6 +89,53 @@ version: 0.1.0
 
 ## Available Plugins
 
+### feature-harness Plugin
+
+**Purpose**: Production-ready autonomous feature implementation system with multi-session context management, Linear integration, and Playwright testing.
+
+### Core Components
+
+**4 Agents**:
+1. `spec-writer` - Feature specification generation (discovery, exploration, architecture)
+2. `initializer` - Session 1: Setup, planning, Linear issue creation
+3. `coder` - Session 2+: Autonomous implementation with testing
+4. `resume` - Checkpoint recovery and error handling
+
+**5 Commands**:
+1. `/write-spec` - Launch spec-writer for feature design
+2. `/feature-harness` - Main entry (auto-detects session 1 vs 2+)
+3. `/feature-status` - Show progress and current state
+4. `/feature-resume` - Resume from checkpoint
+5. `/feature-stop` - Graceful stop with manual checkpoint
+
+**2 Skills**:
+1. `harness-guide` - Complete workflow guide and architecture
+2. `troubleshooting` - Common issues and solutions
+
+**Artifacts**: Context preserved in `.harness/` directory:
+- `session.json` - Current session state
+- `features.json` - Feature list with status
+- `progress.txt` - Human-readable audit log
+- `init.sh` - Environment bootstrap script
+- `.linear_project.json` - Cached Linear project
+
+**MCP Servers**:
+- Linear MCP (required) - OAuth authentication
+- Playwright MCP (required) - Browser automation
+- GitHub MCP (optional) - Repository integration
+
+### Workflow
+
+```
+1. /write-spec         → Design feature, create spec
+2. /feature-harness    → Initialize (Session 1): Linear issues, artifacts
+3. /feature-harness    → Implement (Session 2+): Code, test, commit
+4. /feature-status     → Check progress
+5. /feature-resume     → Handle failures
+```
+
+---
+
 ### prototype-mode Plugin
 
 **Purpose**: Safe frontend prototyping environment that blocks backend operations, database access, and external API calls while enabling rapid UI/UX development with mock data.
