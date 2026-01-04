@@ -29,7 +29,7 @@ Use Task tool:
 - description: "Generate feature specification"
 - subagent_type: "feature-harness:spec-writer"
 - prompt: "Guide the user through feature specification generation. [If feature name provided: Focus on feature: <name>]"
-- model: sonnet
+- model: opus
 ```
 
 ## STEP 3: Monitor Execution

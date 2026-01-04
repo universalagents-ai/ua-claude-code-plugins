@@ -6,10 +6,6 @@
     "name": "Sprocket UX Limited",
     "email": "team@sprocket.com"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/sprocket/interplay"
-  },
   "keywords": [
     "feature-development",
     "linear",
