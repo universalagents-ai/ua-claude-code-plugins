@@ -1,5 +1,5 @@
 ---
-description: "Guide user through feature specification generation - orchestrates discovery, codebase scanning, clarifying questions, architecture design, and spec writing"
+description: "Guide user through feature specification generation - orchestrates discovery, parallel codebase scanning, clarifying questions, parallel architecture design, and spec writing"
 argument-hint: "[--feature-name <name>]"
 ---
 
@@ -11,14 +11,23 @@ You are the **orchestrator** for feature specification generation. You guide the
 
 ```
 YOU (this command) - The Orchestrator
-├── Phase 1: Discovery         → YOU handle (AskUserQuestion)
-├── Phase 2: Codebase Scan     → codebase-scanner agent
-├── Phase 3: Clarifying Qs     → YOU handle (AskUserQuestion)
-├── Phase 4: Architecture      → spec-architect agent
-└── Phase 5: Spec Generation   → YOU handle (Write tool)
+├── Phase 1: Discovery              → YOU handle (AskUserQuestion)
+├── Phase 2: Codebase Scan          → 3 codebase-scanner agents IN PARALLEL
+│   ├── Agent 1: Component & UI Patterns
+│   ├── Agent 2: State & Data Flow
+│   └── Agent 3: Architecture & Dependencies
+├── Phase 3: Clarifying Questions   → YOU handle (AskUserQuestion)
+├── Phase 4: Architecture Design    → 3 spec-architect agents IN PARALLEL
+│   ├── Agent 1: Minimal Changes Approach
+│   ├── Agent 2: Clean Architecture Approach
+│   └── Agent 3: Validation Perspective
+└── Phase 5: Spec Generation        → YOU handle (Write tool + skill)
 ```
 
-**Key principle**: YOU handle all human interaction. Agents execute autonomously and return results.
+**Key principles**:
+- YOU handle all human interaction
+- Agents execute autonomously and return results
+- **Launch agents in parallel** for efficiency (use multiple Task tool calls in single message)
 
 ---
 
@@ -30,9 +39,9 @@ YOU (this command) - The Orchestrator
 
 Use TodoWrite to create a tracking list:
 1. Phase 1: Discovery
-2. Phase 2: Codebase Exploration
+2. Phase 2: Codebase Exploration (Parallel Scan)
 3. Phase 3: Clarifying Questions
-4. Phase 4: Architecture Design
+4. Phase 4: Architecture Design (Parallel Perspectives)
 5. Phase 5: Spec Generation
 
 ### Step 1.2: Get Feature Description
@@ -112,98 +121,218 @@ Options:
 
 ---
 
-## PHASE 2: Codebase Exploration
+## PHASE 2: Codebase Exploration (Parallel Scan)
 
-**Goal**: Scan codebase to understand existing patterns and components, leveraging any existing inventory.
+**Goal**: Scan codebase using 3 parallel agents with different focus areas for comprehensive coverage.
 
 ### Step 2.1: Check for Existing Codebase Inventory
 
-Before invoking the scanner agent, check if a codebase inventory already exists:
+Before invoking scanner agents, check if inventory files exist:
 
 ```
-Use Read tool to check: .harness/codebase-inventory.json
+Use Read tool to check:
+- .harness/codebase-inventory.json
+- .harness/codebase-inventory.md
 ```
 
 **If inventory exists**:
 - Output: `📋 Found existing codebase inventory (last updated: [timestamp from file])`
-- Parse the inventory to extract:
-  - Component count, page count, API route count, store count
-  - Architecture summary
-  - Known patterns and conventions
-- This context will be passed to the codebase-scanner agent
+- Parse the inventory to extract context for scanner agents
+- Pass this context to all 3 scanner agents
 
 **If inventory doesn't exist**:
 - Output: `📋 No existing codebase inventory found. Will create new inventory.`
 - Ensure `.harness/` directory exists: `mkdir -p .harness`
 
-### Step 2.2: Invoke Codebase Scanner Agent
+### Step 2.2: Launch 3 Codebase Scanner Agents IN PARALLEL
 
-Use Task tool to launch the codebase-scanner agent WITH existing inventory context:
+**CRITICAL**: Launch all 3 agents in a SINGLE message with multiple Task tool calls. This runs them concurrently for faster results.
 
 ```
-Use Task tool:
-- description: "Scan codebase structure"
+Use Task tool (ALL 3 IN PARALLEL in same message):
+
+Agent 1 - Component & UI Patterns:
+- description: "Scan UI patterns"
 - subagent_type: "feature-harness:codebase-scanner"
 - prompt: |
-    Scan the codebase and return a structured inventory. The user is designing a feature for: [FEATURE DESCRIPTION]. Focus on identifying relevant patterns and reusable components.
+    FOCUS AREA: Component & UI Patterns
 
-    [IF EXISTING INVENTORY EXISTS, INCLUDE:]
-    ## Existing Inventory Context
-    The previous inventory (from [timestamp]) showed:
-    - Components: [count]
-    - Pages: [count]
-    - API Routes: [count]
-    - Stores: [count]
-    - Architecture: [summary]
+    The user is designing a feature: [FEATURE DESCRIPTION]
 
-    Please validate this against current codebase state and report any:
-    - **Additions**: New files/patterns not in previous inventory
-    - **Removals**: Files/patterns that no longer exist
-    - **Changes**: Significant structural changes
+    Analyze the codebase focusing on:
+    - Component structure and naming conventions
+    - Reusable UI patterns
+    - Styling conventions (Tailwind classes)
+    - Prop/emit patterns
+    - Slot usage patterns
 
-    [END IF]
+    [IF EXISTING INVENTORY: Include context from previous inventory]
+
+    Return structured findings for your focus area.
 - model: sonnet
+- run_in_background: true
+
+Agent 2 - State & Data Flow:
+- description: "Scan data patterns"
+- subagent_type: "feature-harness:codebase-scanner"
+- prompt: |
+    FOCUS AREA: State & Data Flow
+
+    The user is designing a feature: [FEATURE DESCRIPTION]
+
+    Analyze the codebase focusing on:
+    - Pinia stores structure and patterns
+    - Composables and their usage
+    - API integration patterns
+    - Data fetching strategies
+    - Error handling approaches
+
+    [IF EXISTING INVENTORY: Include context from previous inventory]
+
+    Return structured findings for your focus area.
+- model: sonnet
+- run_in_background: true
+
+Agent 3 - Architecture & Dependencies:
+- description: "Scan architecture"
+- subagent_type: "feature-harness:codebase-scanner"
+- prompt: |
+    FOCUS AREA: Architecture & Dependencies
+
+    The user is designing a feature: [FEATURE DESCRIPTION]
+
+    Analyze the codebase focusing on:
+    - Project structure and module organization
+    - Nuxt configuration and layers
+    - Dependencies and their usage
+    - Build configuration
+    - CLAUDE.md conventions
+
+    [IF EXISTING INVENTORY: Include context from previous inventory]
+
+    Return structured findings for your focus area.
+- model: sonnet
+- run_in_background: true
 ```
 
-### Step 2.3: Process Scanner Results and Update Inventory
+### Step 2.3: Collect and Merge Results
 
-When agent returns:
+Use TaskOutput to collect results from all 3 agents:
 
-1. **Output the codebase context to user**:
-   ```
-   ## Codebase Context
+```
+Wait for all 3 agents to complete using TaskOutput with block=true
+```
 
-   [Agent's inventory output]
+Merge the findings into a comprehensive codebase context:
 
-   [If differences found:]
-   ### Inventory Changes Detected
-   - Additions: [list]
-   - Removals: [list]
-   ```
+```
+## Codebase Context (Merged from 3 parallel scans)
 
-2. **Update the codebase inventory file**:
-   Use Write tool to save/update `.harness/codebase-inventory.json` with the agent's structured output:
-   ```json
-   {
-     "lastUpdated": "[ISO timestamp]",
-     "componentCount": [N],
-     "pageCount": [N],
-     "apiRouteCount": [N],
-     "storeCount": [N],
-     "architecture": { ... },
-     "patterns": { ... },
-     "reusableComponents": [ ... ]
-   }
-   ```
+### Component & UI Patterns
+[Results from Agent 1]
 
-3. **Confirm before proceeding**:
-   ```
-   Question: "Codebase scan complete. Ready to proceed to clarifying questions?"
-   Header: "Proceed"
-   Options:
-   - "Yes, proceed to Phase 3"
-   - "No, explore more areas first"
-   ```
+### State & Data Flow
+[Results from Agent 2]
+
+### Architecture & Dependencies
+[Results from Agent 3]
+```
+
+### Step 2.4: Update BOTH Inventory Files
+
+**IMPORTANT**: Create/update BOTH `.json` AND `.md` inventory files.
+
+**1. Update `.harness/codebase-inventory.json`** (machine-readable):
+```json
+{
+  "lastUpdated": "[ISO timestamp]",
+  "scanFocus": ["components", "state", "architecture"],
+  "componentCount": [N],
+  "pageCount": [N],
+  "apiRouteCount": [N],
+  "storeCount": [N],
+  "composableCount": [N],
+  "architecture": {
+    "framework": "Nuxt 4 + Vue 3",
+    "styling": "Tailwind CSS",
+    "stateManagement": "Pinia",
+    "backend": "Supabase"
+  },
+  "patterns": {
+    "componentNaming": "[convention]",
+    "apiRoutes": "[pattern]",
+    "errorHandling": "[approach]"
+  },
+  "reusableComponents": [
+    { "path": "[path]", "purpose": "[purpose]" }
+  ]
+}
+```
+
+**2. Update `.harness/codebase-inventory.md`** (human-readable with intent):
+```markdown
+# Codebase Inventory
+
+**Last Updated**: [ISO timestamp]
+**Scanned By**: Feature Harness /write-spec
+
+## Summary
+
+[2-3 sentences about the codebase structure]
+
+## File Counts
+
+| Category | Count |
+|----------|-------|
+| Components | [N] |
+| Pages | [N] |
+| API Routes | [N] |
+| Stores | [N] |
+| Composables | [N] |
+
+## Architecture
+
+- **Framework**: Nuxt 4 + Vue 3
+- **Styling**: Tailwind CSS v3
+- **State**: Pinia v3
+- **Backend**: Supabase
+
+## Key Patterns
+
+### Component Patterns
+[Description with examples]
+
+### State Management Patterns
+[Description with examples]
+
+### API Patterns
+[Description with examples]
+
+## Reusable Components
+
+| Component | Path | Use For |
+|-----------|------|---------|
+| [Name] | [path] | [when to use] |
+
+## Conventions (from CLAUDE.md)
+
+- [Convention 1]
+- [Convention 2]
+
+## Recommendations
+
+- [Recommendation based on analysis]
+```
+
+### Step 2.5: Confirm Before Proceeding
+
+```
+Question: "Codebase scan complete (3 parallel scans merged). Ready to proceed to clarifying questions?"
+Header: "Proceed"
+Options:
+- "Yes, proceed to Phase 3"
+- "No, explore more areas first"
+```
 
 **Mark Phase 2 complete in todos.**
 
@@ -286,44 +415,128 @@ Options:
 
 ---
 
-## PHASE 4: Architecture Design
+## PHASE 4: Architecture Design (Parallel Perspectives)
 
-**Goal**: Design technical architecture for the feature.
+**Goal**: Design technical architecture using 3 parallel agents with different perspectives.
 
-### Step 4.1: Invoke Spec Architect Agent
+### Step 4.1: Launch 3 Spec Architect Agents IN PARALLEL
 
-Use Task tool to launch the spec-architect agent:
+**CRITICAL**: Launch all 3 agents in a SINGLE message with multiple Task tool calls.
 
 ```
-Use Task tool:
-- description: "Design feature architecture"
+Use Task tool (ALL 3 IN PARALLEL in same message):
+
+Agent 1 - Minimal Changes Approach:
+- description: "Design minimal architecture"
 - subagent_type: "feature-harness:spec-architect"
 - prompt: |
-    Design the architecture for this feature:
+    PERSPECTIVE: Minimal Changes Approach
+
+    Design architecture that achieves the feature with LEAST modification to existing code.
 
     ## Feature Requirements
     [Feature intent from Phase 1]
 
     ## Codebase Context
-    [Inventory from Phase 2]
+    [Merged inventory from Phase 2]
 
     ## Clarified Decisions
     [Decisions from Phase 3]
 
-    Design a complete architecture with components, APIs, database schema (if needed), and build sequence.
+    Focus on:
+    - Reusing existing components
+    - Minimal new code
+    - Conservative changes
+    - Low risk approach
 - model: sonnet
+- run_in_background: true
+
+Agent 2 - Clean Architecture Approach:
+- description: "Design clean architecture"
+- subagent_type: "feature-harness:spec-architect"
+- prompt: |
+    PERSPECTIVE: Clean Architecture Approach
+
+    Design the IDEAL implementation as if starting fresh.
+
+    ## Feature Requirements
+    [Feature intent from Phase 1]
+
+    ## Codebase Context
+    [Merged inventory from Phase 2]
+
+    ## Clarified Decisions
+    [Decisions from Phase 3]
+
+    Focus on:
+    - Best practices
+    - Optimal component structure
+    - Future-proof design
+    - Clean separation of concerns
+- model: sonnet
+- run_in_background: true
+
+Agent 3 - Validation Perspective:
+- description: "Validate architecture"
+- subagent_type: "feature-harness:spec-architect"
+- prompt: |
+    PERSPECTIVE: Validation
+
+    Validate the proposed feature against codebase reality.
+
+    ## Feature Requirements
+    [Feature intent from Phase 1]
+
+    ## Codebase Context
+    [Merged inventory from Phase 2]
+
+    ## Clarified Decisions
+    [Decisions from Phase 3]
+
+    Focus on:
+    - Path accuracy (do files exist?)
+    - Naming conflicts
+    - Type compatibility
+    - CSS/Tailwind compliance
+    - API contract compatibility
+- model: sonnet
+- run_in_background: true
 ```
 
-### Step 4.2: Present Architecture
+### Step 4.2: Collect and Synthesize Results
 
-When agent returns, present the architecture to user:
+Use TaskOutput to collect results from all 3 agents.
+
+Present a synthesized architecture:
+
 ```
-## Architecture Design
+## Architecture Design (Synthesized from 3 perspectives)
 
-[Agent's architecture output]
+### Recommended Approach
+[Choose between Minimal or Clean based on trade-offs]
+
+### From Minimal Changes Agent
+[Key points from Agent 1]
+
+### From Clean Architecture Agent
+[Key points from Agent 2]
+
+### Validation Results
+[Findings from Agent 3]
+
+### Final Component Inventory
+| Component | Action | Path | Purpose |
+|-----------|--------|------|---------|
+| ... | ... | ... | ... |
+
+### Final Build Sequence
+1. [Step 1]
+2. [Step 2]
+...
 ```
 
-Confirm before proceeding:
+### Step 4.3: Confirm Architecture
+
 ```
 Question: "Does this architecture look good? Ready to generate the spec?"
 Header: "Architecture"
@@ -332,7 +545,7 @@ Options:
 - "No, I want to adjust something"
 ```
 
-If user wants adjustments, discuss and re-invoke architect if needed.
+If user wants adjustments, discuss and re-invoke relevant architect if needed.
 
 **Mark Phase 4 complete in todos.**
 
@@ -342,15 +555,27 @@ If user wants adjustments, discuss and re-invoke architect if needed.
 
 **Goal**: Generate and write the feature specification file.
 
-### Step 5.1: Create Directory
+### Step 5.1: Load Spec Writing Skill
+
+**IMPORTANT**: Reference the `spec-writing-best-practices` skill for consistent spec formatting.
+
+The skill provides guidance on:
+- Spec structure and required sections
+- Decisive language (avoid "could", "might", "consider")
+- Exact file paths with line references
+- Table format for component inventory
+- Atomic build sequence steps
+- Given/When/Then test cases
+
+### Step 5.2: Create Directory
 
 ```bash
 mkdir -p specs/features
 ```
 
-### Step 5.2: Generate Spec Content
+### Step 5.3: Generate Spec Content
 
-Combine all gathered information into a spec using this template:
+Combine all gathered information following the spec-writing-best-practices skill guidance:
 
 ```markdown
 # Feature: [Feature Name]
@@ -384,25 +609,57 @@ Combine all gathered information into a spec using this template:
 
 ## Technical Design
 
-[Architecture from Phase 4 - components, APIs, database, state management]
+### Component Inventory
+
+| Component | Action | Path | Purpose |
+|-----------|--------|------|---------|
+| [Name] | Create | [full path] | [purpose] |
+| [Name] | Modify | [full path] | [what changes] |
+
+### Components to Create
+
+[Detailed component specifications from architecture]
+
+### Components to Modify
+
+[Detailed modification specifications]
+
+### API Endpoints (if applicable)
+
+[API specifications]
+
+### State Management (if applicable)
+
+[Store specifications]
 
 ## Build Sequence
 
-[Step-by-step implementation order from architecture]
+1. **[Step Title]** - [What to build]
+   - Files: [specific files]
+   - Test: [how to verify]
+
+[Continue for 8-16 atomic steps]
 
 ## Test Cases
 
-### Test Case 1: [Scenario]
+### Test Case 1: [Happy Path Scenario]
 **Given**: [Initial state]
-**When**: [Action]
-**Then**: [Expected outcome]
+**When**: [User action]
+**Then**:
+- [Expected outcome 1]
+- [Expected outcome 2]
 
-[Repeat for 5-10 scenarios]
+[Repeat for 5-10 scenarios including edge cases]
 
 ## Codebase Context
 
 **Relevant patterns**: [From Phase 2]
 **Reusable components**: [From Phase 2]
+
+## Out of Scope
+
+- [Explicit boundaries]
+- [What NOT to change]
 
 ---
 
@@ -410,19 +667,23 @@ Combine all gathered information into a spec using this template:
 **For implementation**: Run `/feature-harness` to begin autonomous implementation
 ```
 
-### Step 5.3: Write Spec File
+### Step 5.4: Write Spec File
 
 Use Write tool to save the spec:
 - Filename: `specs/features/[kebab-case-feature-name].md`
 - Report: "Spec written to specs/features/[filename]"
 
-### Step 5.4: Inform User
+### Step 5.5: Inform User
 
 Output completion message:
 ```
 ## Specification Complete
 
 **File created**: specs/features/[filename]
+
+### Inventory Files Updated
+- `.harness/codebase-inventory.json` (machine-readable)
+- `.harness/codebase-inventory.md` (human-readable)
 
 ### Next Steps
 
@@ -442,15 +703,15 @@ The Feature Harness workflow:
 
 ## Error Handling
 
-### If codebase-scanner agent fails:
-- Report error to user
-- Offer to proceed with manual context gathering
-- Use Glob/Grep directly to get basic file counts
+### If a scanner agent fails:
+- Report which agent failed
+- Continue with results from successful agents
+- Note incomplete coverage in inventory
 
-### If spec-architect agent fails:
-- Report error to user
-- Offer to design architecture manually with user input
-- Use simpler component-by-component approach
+### If an architect agent fails:
+- Report which perspective failed
+- Continue with results from successful agents
+- Note missing perspective in synthesis
 
 ### If user is unclear:
 - Ask more specific questions
@@ -462,7 +723,9 @@ The Feature Harness workflow:
 ## Important Notes
 
 - **YOU are the orchestrator** - don't delegate orchestration to agents
-- **Agents are autonomous** - they execute and return, no multi-turn conversation
+- **Launch agents IN PARALLEL** - use multiple Task tool calls in single message
+- **Agents execute autonomously** - they return results, no multi-turn conversation
 - **Human interaction is YOUR job** - all AskUserQuestion calls happen in this command
-- **Be patient with phases** - don't rush through, ensure each phase completes properly
+- **Update BOTH inventory files** - .json AND .md formats
+- **Reference the spec-writing skill** - for consistent spec quality
 - **Track progress** - update todos as you complete each phase
