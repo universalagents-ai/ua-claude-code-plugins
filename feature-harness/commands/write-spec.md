@@ -240,88 +240,28 @@ Merge the findings into a comprehensive codebase context:
 
 ### Step 2.4: Update BOTH Inventory Files
 
-**IMPORTANT**: Create/update BOTH `.json` AND `.md` inventory files.
+**Reference**: See `codebase-inventory` skill for complete format documentation.
 
-**1. Update `.harness/codebase-inventory.json`** (machine-readable):
-```json
-{
-  "lastUpdated": "[ISO timestamp]",
-  "scanFocus": ["components", "state", "architecture"],
-  "componentCount": [N],
-  "pageCount": [N],
-  "apiRouteCount": [N],
-  "storeCount": [N],
-  "composableCount": [N],
-  "architecture": {
-    "framework": "Nuxt 4 + Vue 3",
-    "styling": "Tailwind CSS",
-    "stateManagement": "Pinia",
-    "backend": "Supabase"
-  },
-  "patterns": {
-    "componentNaming": "[convention]",
-    "apiRoutes": "[pattern]",
-    "errorHandling": "[approach]"
-  },
-  "reusableComponents": [
-    { "path": "[path]", "purpose": "[purpose]" }
-  ]
-}
-```
+**IMPORTANT**: Create/update BOTH `.json` AND `.md` inventory files following the `codebase-inventory` skill format.
 
-**2. Update `.harness/codebase-inventory.md`** (human-readable with intent):
+1. **Write `.harness/codebase-inventory.json`** (machine-readable)
+   - Must include: lastUpdated, componentCount, pageCount, apiRouteCount, storeCount, composableCount
+   - Must include: architecture object, patterns object
+   - Optional: reusableComponents array, protoComponents object
+
+2. **Write `.harness/codebase-inventory.md`** (human-readable)
+   - Must include: Header with lastUpdated and scanned by
+   - Must include: Summary, File Counts table, Architecture list, Key Patterns sections
+   - Optional: Reusable Components table, Conventions, Recommendations, Gaps
+
+**If existing inventory was found in Step 2.1**, include comparison:
 ```markdown
-# Codebase Inventory
+## Changes Since Last Scan
 
-**Last Updated**: [ISO timestamp]
-**Scanned By**: Feature Harness /write-spec
-
-## Summary
-
-[2-3 sentences about the codebase structure]
-
-## File Counts
-
-| Category | Count |
-|----------|-------|
-| Components | [N] |
-| Pages | [N] |
-| API Routes | [N] |
-| Stores | [N] |
-| Composables | [N] |
-
-## Architecture
-
-- **Framework**: Nuxt 4 + Vue 3
-- **Styling**: Tailwind CSS v3
-- **State**: Pinia v3
-- **Backend**: Supabase
-
-## Key Patterns
-
-### Component Patterns
-[Description with examples]
-
-### State Management Patterns
-[Description with examples]
-
-### API Patterns
-[Description with examples]
-
-## Reusable Components
-
-| Component | Path | Use For |
-|-----------|------|---------|
-| [Name] | [path] | [when to use] |
-
-## Conventions (from CLAUDE.md)
-
-- [Convention 1]
-- [Convention 2]
-
-## Recommendations
-
-- [Recommendation based on analysis]
+| Metric | Previous | Current | Change |
+|--------|----------|---------|--------|
+| Components | [prev] | [curr] | +/-N |
+| Pages | [prev] | [curr] | +/-N |
 ```
 
 ### Step 2.5: Confirm Before Proceeding

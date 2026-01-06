@@ -1,0 +1,68 @@
+{
+  "lastUpdated": "2026-01-04T12:00:00Z",
+  "componentCount": 46,
+  "pageCount": 4,
+  "apiRouteCount": 2,
+  "storeCount": 0,
+  "composableCount": 2,
+  "architecture": {
+    "framework": "Nuxt 4.0.3 + Vue 3",
+    "styling": "Tailwind CSS v3 with @tailwindcss/vite plugin",
+    "stateManagement": "Pinia v3 (installed but unused)",
+    "testing": "Vitest v3 + Playwright (configured)",
+    "backend": "Supabase + Vercel AI SDK v4"
+  },
+  "patterns": {
+    "componentNaming": "PascalCase for components, camelCase for composables",
+    "apiRoutes": "defineEventHandler with streamText from Vercel AI SDK",
+    "errorHandling": "createError for API responses",
+    "typescript": "Strict mode, <script setup lang=\"ts\">, type imports",
+    "protoSystem": "Dedicated /proto namespace for prototyping components"
+  },
+  "protoComponents": {
+    "initializer": [
+      "InitializerCanvas.vue",
+      "InitializerFileUpload.vue",
+      "InitializerProcessing.vue",
+      "InitializerRecommendations.vue",
+      "InitializerWelcome.vue",
+      "PersonaCanvas.vue",
+      "ResearchCanvas.vue",
+      "StrategyCanvas.vue",
+      "TaskTypeSelector.vue"
+    ],
+    "layout": [
+      "CanvasPanel.vue",
+      "ChatPanel.vue",
+      "FinalDeliverable.vue",
+      "MainContent.vue"
+    ]
+  },
+  "uiLibraryComponents": 33,
+  "pages": [
+    "index.vue",
+    "block-proto.vue",
+    "components-demo.vue",
+    "theme-demo.vue"
+  ],
+  "apiEndpoints": [
+    "/api/health.ts",
+    "/api/chat.post.ts"
+  ],
+  "composables": [
+    "useAuth.ts",
+    "useTheme.ts"
+  ],
+  "reusableComponents": [
+    { "path": "components/ui/Avatar.vue", "purpose": "User avatar display" },
+    { "path": "components/ui/Badge.vue", "purpose": "Status indicators" },
+    { "path": "components/ui/Button.vue", "purpose": "Primary actions with variants" },
+    { "path": "components/ui/Card.vue", "purpose": "Content container with slots" },
+    { "path": "components/ui/Dialog.vue", "purpose": "Modal dialogs" },
+    { "path": "components/ui/Input.vue", "purpose": "Text input fields" },
+    { "path": "components/ui/Label.vue", "purpose": "Form field labels" },
+    { "path": "components/ui/Sheet.vue", "purpose": "Slide-out panels" },
+    { "path": "components/ui/Switch.vue", "purpose": "Toggle switches" },
+    { "path": "components/ui/Textarea.vue", "purpose": "Multiline text input" }
+  ]
+}

@@ -137,6 +137,25 @@ Scan and analyze:
 - `tsconfig.json` - TypeScript config
 - Look for: module structure, layer patterns, build configuration
 
+## Handling Existing Inventory Context
+
+If your prompt includes an **EXISTING INVENTORY CONTEXT** section:
+
+1. **Parse the provided context** - Extract relevant counts and patterns for your focus area
+2. **Validate against current state** - Compare existing inventory with what you discover
+3. **Report changes** - Include a "Changes Detected" section in your output:
+
+```markdown
+### Changes Detected (vs Existing Inventory)
+| Aspect | Previous | Current | Status |
+|--------|----------|---------|--------|
+| Component count | 46 | 48 | +2 new |
+| Pattern X | [old] | [new] | Changed |
+| [Item] | existed | missing | Removed |
+```
+
+This helps the orchestrating command determine if inventory files need updating.
+
 ## Important Guidelines
 
 - **Focus on your assigned area** - Don't try to cover everything
@@ -145,3 +164,4 @@ Scan and analyze:
 - **No human interaction** - Execute autonomously and return results
 - **Complete within 1-2 minutes** - Focused analysis, not exhaustive audit
 - **Coordinate with parallel agents** - Your findings will be merged with other focus areas
+- **Validate existing inventory** - If context provided, compare and report differences
