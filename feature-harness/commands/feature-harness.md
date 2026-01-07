@@ -442,12 +442,37 @@ AskUserQuestion: {
 
 If yes: `git checkout -b feature/harness-[date]`
 
-## Init Step 9: Commit Artifacts
+## Init Step 9: Commit and Push Artifacts
+
+**Use commit-commands plugin for properly formatted commits:**
+
+### 9.1 Stage Harness Artifacts
 
 ```bash
 git add .harness/
-git commit -m "Initialize Feature Harness with [N] features..."
 ```
+
+### 9.2 Create Commit Using Commit-Commands
+
+```
+Skill: commit-commands:commit
+```
+
+The commit-commands plugin will:
+- Create properly formatted commit message
+- Include co-author attribution
+- Follow conventional commit format
+
+### 9.3 Push to Remote Repository
+
+```bash
+git push -u origin [branch-name]
+```
+
+**If push fails** (no remote or permission issues):
+- Log warning to progress.txt
+- Continue with initialization (push is not blocking)
+- Tell user they may need to push manually
 
 ## Init Step 10: Handoff Summary
 
@@ -621,12 +646,91 @@ pnpm test:all
 
 ## Code Step 10: Commit Changes
 
-**Use commit-commands plugin:**
+**Only execute if tests passed in Step 9**
+
+### 10.1 Use Commit-Commands Plugin
+
+**CRITICAL**: Use the official commit-commands plugin for properly formatted commits.
+
 ```
 Skill: commit-commands:commit
 ```
 
-Update features.json with completed status and commit hash.
+This will:
+- Stage all changes with `git add .`
+- Create commit with proper format including Linear issue reference
+- Add co-author attribution
+- Follow conventional commit format
+
+**Expected commit format (handled by plugin):**
+```
+feat: Implement [feature name] (LINEAR-123)
+
+- [Summary of changes]
+- [Files created/modified]
+
+Acceptance criteria:
+✅ [criterion 1]
+✅ [criterion 2]
+
+Tests: All passing
+Browser verification: Complete
+
+🤖 Generated with Claude Code
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+### 10.2 Capture Commit Hash
+
+After commit, get the commit hash:
+
+```bash
+COMMIT_HASH=$(git rev-parse HEAD)
+```
+
+### 10.3 Update features.json
+
+Read `.harness/features.json`, update the completed feature:
+
+```json
+{
+  "id": "feat-001",
+  "status": "completed",
+  "completedAt": "[timestamp]",
+  "commitHash": "[hash from git]",
+  "linearIssueId": "LINEAR-123"
+}
+```
+
+Write the updated features.json back.
+
+### 10.4 Push to Remote Repository
+
+```bash
+git push
+```
+
+This ensures:
+- Team members can see progress
+- CI/CD pipelines can run on commits
+- Work is backed up remotely
+
+**If push fails:**
+- Log warning to progress.txt
+- Continue with workflow (push is not blocking)
+- Tell user they may need to push manually
+
+### 10.5 Log to progress.txt
+
+Append to `.harness/progress.txt`:
+
+```
+[timestamp] Session [N] - Feature feat-001 completed
+  Issue: LINEAR-123 - [Feature Title]
+  Files: X modified, Y created
+  Tests: All passed
+  Commit: [commit hash]
+```
 
 ## Code Step 11: Update Linear
 
