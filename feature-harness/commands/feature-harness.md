@@ -496,22 +496,19 @@ Execute when `.harness/session.json` exists and status is "ready" or "completed"
 
 **Command does directly:**
 1. Create todo list
-2. **Run `pwd` to get current directory**
-3. **Store repository root path** for use throughout workflow:
+2. **Navigate to repository root** (MANDATORY first step):
    ```bash
-   REPO_ROOT=$(pwd)
-   # If not at repo root (check for .git directory), cd to it
-   if [ ! -d ".git" ]; then
-     # Find repo root by looking for .git
-     REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-     cd "$REPO_ROOT"
-   fi
+   cd "$(git rev-parse --show-toplevel)"
+   pwd  # Verify location
    ```
-4. Verify directory contains `.harness/` and `.git/`
-5. Read session.json, features.json, progress.txt
-6. Read codebase-inventory.json for context
+3. Verify directory contains `.harness/` and `.git/`:
+   ```bash
+   ls -d .git .harness  # Both MUST exist
+   ```
+4. Read session.json, features.json, progress.txt
+5. Read codebase-inventory.json for context
 
-**Store REPO_ROOT** - All subsequent git and test commands MUST use this path.
+**IMPORTANT**: Shell variables do NOT persist between tool calls. Do NOT rely on `$REPO_ROOT` being set. Instead, use `cd "$(git rev-parse --show-toplevel)"` at the START of any Bash command that requires being at repo root (especially tests and git operations).
 
 ## Code Step 2: Review Linear Status
 
@@ -563,7 +560,7 @@ echo "✅ Dev server cleanup complete"
 ### 3.2 Start Dev Server in Background
 
 ```bash
-cd "$REPO_ROOT"
+cd "$(git rev-parse --show-toplevel)"
 chmod +x .harness/init.sh
 .harness/init.sh dev &
 DEV_SERVER_PID=$!
@@ -696,28 +693,39 @@ Task: {
 
 **IMPORTANT: Run tests from the correct directory!**
 
-### 9.1 Ensure Correct Directory
+### 9.1 Ensure Correct Directory (MANDATORY)
+
+**CRITICAL: This step is NON-NEGOTIABLE. Execute these commands BEFORE any test commands.**
 
 ```bash
-cd "$REPO_ROOT"
-pwd  # Verify we're at repository root
+# Step 1: Find and navigate to repository root
+cd "$(git rev-parse --show-toplevel)"
+
+# Step 2: Verify we're at repo root (MUST show path containing .git)
+pwd
+ls -d .git  # This MUST succeed
+
+# Step 3: Confirm .harness directory exists (proves we're in right place)
+ls -d .harness
 ```
+
+**If any of these commands fail**, you are NOT at the repository root. Do NOT proceed with tests until you've navigated to the correct directory.
 
 ### 9.2 Run Project Tests
 
 **These are the project's automated tests (unit tests, integration tests), NOT browser tests.**
 
-The test command depends on the project structure:
-- **Monorepo with apps/web**: Run tests from web app directory
-- **Single app**: Run from root
+The test command depends on the project structure. **Always run from repo root using pnpm --filter:**
 
 ```bash
-# For monorepo (like Interplay):
-cd "$REPO_ROOT/apps/web" && pnpm test
+# For monorepo (like Interplay) - run from repo root using filter:
+pnpm --filter web test
 
-# OR for single app:
-cd "$REPO_ROOT" && pnpm test:all
+# OR for single app (from repo root):
+pnpm test
 ```
+
+**DO NOT** use `cd apps/web && pnpm test` - this changes directory and can cause issues with subsequent commands.
 
 **Note**: The Feature Harness plugin itself has no tests - it's the PROJECT being developed that has tests. If you see "feature-harness app has no tests", you're in the wrong directory.
 
@@ -736,17 +744,27 @@ cd "$REPO_ROOT" && pnpm test:all
 
 **Only execute if tests passed in Step 9**
 
-### 10.0 Ensure Correct Directory for Git Operations
+### 10.0 Ensure Correct Directory for Git Operations (MANDATORY)
 
-**CRITICAL**: Git commands MUST run from the repository root!
+**CRITICAL: This step is NON-NEGOTIABLE. Execute these commands BEFORE any git commands.**
+
+Git commands MUST run from the repository root. If you skip this step, git add/commit will fail with "pathspec did not match any files".
 
 ```bash
-cd "$REPO_ROOT"
-pwd  # Verify we're at repository root (should show path containing .git)
-ls -la .git  # Confirm .git directory exists here
+# Step 1: Find and navigate to repository root (ALWAYS use this command)
+cd "$(git rev-parse --show-toplevel)"
+
+# Step 2: Verify we're at repo root
+pwd  # MUST show the repository root path
+
+# Step 3: Confirm .git directory exists here
+ls -d .git  # This MUST succeed
+
+# Step 4: Confirm .harness directory exists (proves we're in right place)
+ls -d .harness
 ```
 
-**If not at repo root**, the git commands will fail with "pathspec did not match any files".
+**If any of these commands fail**, you are NOT at the repository root. Do NOT proceed with git commands until you've navigated to the correct directory.
 
 ### 10.1 Use Commit-Commands Plugin
 
@@ -851,7 +869,7 @@ Add implementation comment to feature issue.
 
 Read from session.json:
 ```bash
-cd "$REPO_ROOT"
+cd "$(git rev-parse --show-toplevel)"
 cat .harness/session.json | grep linearMetaIssueId
 ```
 
@@ -895,7 +913,7 @@ mcp__linear-server__create_comment with {
 ### 12.3 Update session.json
 
 ```bash
-cd "$REPO_ROOT"
+cd "$(git rev-parse --show-toplevel)"
 ```
 
 Update session.json:
