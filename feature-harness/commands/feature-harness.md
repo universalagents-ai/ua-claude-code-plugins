@@ -492,11 +492,26 @@ Execute when `.harness/session.json` exists and status is "ready" or "completed"
 
 ## Code Step 1: Environment Check
 
+**CRITICAL: Establish repository root first!**
+
 **Command does directly:**
 1. Create todo list
-2. Verify directory
-3. Read session.json, features.json, progress.txt
-4. Read codebase-inventory.json for context
+2. **Run `pwd` to get current directory**
+3. **Store repository root path** for use throughout workflow:
+   ```bash
+   REPO_ROOT=$(pwd)
+   # If not at repo root (check for .git directory), cd to it
+   if [ ! -d ".git" ]; then
+     # Find repo root by looking for .git
+     REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+     cd "$REPO_ROOT"
+   fi
+   ```
+4. Verify directory contains `.harness/` and `.git/`
+5. Read session.json, features.json, progress.txt
+6. Read codebase-inventory.json for context
+
+**Store REPO_ROOT** - All subsequent git and test commands MUST use this path.
 
 ## Code Step 2: Review Linear Status
 
@@ -511,13 +526,38 @@ Read META issue for session history.
 
 ## Code Step 3: Start Dev Server
 
-**Use init.sh:**
+**IMPORTANT: Track the dev server so it can be killed at session end.**
+
+### 3.1 Kill Any Existing Dev Server First
+
 ```bash
-chmod +x .harness/init.sh
-.harness/init.sh dev &
+# Kill any existing processes on common dev ports
+lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+lsof -ti:3001 | xargs kill -9 2>/dev/null || true
 ```
 
-Verify server running on port 3000.
+### 3.2 Start Dev Server in Background
+
+```bash
+cd "$REPO_ROOT"
+chmod +x .harness/init.sh
+.harness/init.sh dev &
+DEV_SERVER_PID=$!
+```
+
+### 3.3 Store Dev Server PID for Cleanup
+
+```bash
+echo "$DEV_SERVER_PID" > .harness/.dev_server_pid
+```
+
+### 3.4 Verify Server is Running
+
+Wait a few seconds, then verify server running on port 3000:
+```bash
+sleep 5
+curl -s http://localhost:3000 > /dev/null && echo "✅ Dev server running on :3000" || echo "⚠️ Dev server may not be ready"
+```
 
 ## Code Step 4: Regression Testing (via browser-tester agent)
 
@@ -630,23 +670,59 @@ Task: {
 
 ## Code Step 9: Run Automated Tests
 
-**Command runs tests:**
+**IMPORTANT: Run tests from the correct directory!**
+
+### 9.1 Ensure Correct Directory
+
 ```bash
-pnpm test:all
+cd "$REPO_ROOT"
+pwd  # Verify we're at repository root
 ```
+
+### 9.2 Run Project Tests
+
+**These are the project's automated tests (unit tests, integration tests), NOT browser tests.**
+
+The test command depends on the project structure:
+- **Monorepo with apps/web**: Run tests from web app directory
+- **Single app**: Run from root
+
+```bash
+# For monorepo (like Interplay):
+cd "$REPO_ROOT/apps/web" && pnpm test
+
+# OR for single app:
+cd "$REPO_ROOT" && pnpm test:all
+```
+
+**Note**: The Feature Harness plugin itself has no tests - it's the PROJECT being developed that has tests. If you see "feature-harness app has no tests", you're in the wrong directory.
+
+### 9.3 Handle Test Results
 
 **If tests FAIL:**
 - Create checkpoint in `.harness/checkpoints/[timestamp].json`
 - Update session.json to status: "checkpoint"
-- Add Linear comment
+- Add Linear comment with failure details
 - Tell user about checkpoint
 - **STOP workflow**
 
-**If tests PASS:** Continue.
+**If tests PASS:** Continue to Step 10.
 
 ## Code Step 10: Commit Changes
 
 **Only execute if tests passed in Step 9**
+
+### 10.0 Ensure Correct Directory for Git Operations
+
+**CRITICAL**: Git commands MUST run from the repository root!
+
+```bash
+cd "$REPO_ROOT"
+pwd  # Verify we're at repository root (should show path containing .git)
+ls -la .git  # Confirm .git directory exists here
+```
+
+**If not at repo root**, the git commands will fail with "pathspec did not match any files".
 
 ### 10.1 Use Commit-Commands Plugin
 
@@ -745,12 +821,57 @@ Add implementation comment to feature issue.
 
 ## Code Step 12: Update META and End Session
 
-Add session summary to META issue:
+**CRITICAL: The META ticket MUST be updated with session progress!**
+
+### 12.1 Get META Issue ID
+
+Read from session.json:
+```bash
+cd "$REPO_ROOT"
+cat .harness/session.json | grep linearMetaIssueId
+```
+
+The `linearMetaIssueId` field contains the META tracking issue ID.
+
+### 12.2 Update META Issue (REQUIRED)
+
+**This step is MANDATORY - do NOT skip!**
+
+Add session summary comment to the META issue:
+
 ```
 mcp__linear-server__create_comment with {
-  issueId: "[meta-id]",
-  body: "## Session [N] Summary..."
+  issueId: "[linearMetaIssueId from session.json]",
+  body: "## Session [N] Progress Update
+
+### Feature Completed
+- **Issue**: [LINEAR-ID] - [Feature Title]
+- **Commit**: `[commit hash]`
+- **Files Changed**: [list of files]
+
+### Test Results
+- ✅ Type check passed
+- ✅ Unit tests passed (X/Y)
+- ✅ Browser verification: [PASS/SKIP/N/A]
+
+### Session Summary
+- Started: [timestamp]
+- Duration: ~[X] minutes
+- Status: Complete
+
+### Next Steps
+- Remaining features: [N]
+- Next priority: [LINEAR-ID] - [Title]
+
+---
+*Session tracked by Feature Harness*"
 }
+```
+
+### 12.3 Update session.json
+
+```bash
+cd "$REPO_ROOT"
 ```
 
 Update session.json:
@@ -758,21 +879,44 @@ Update session.json:
 {
   "sessionNumber": [N+1],
   "status": "ready",
-  "completedAt": "[timestamp]"
+  "completedAt": "[timestamp]",
+  "lastCompletedFeature": "[LINEAR-ID]",
+  "lastCommitHash": "[hash]"
 }
 ```
+
+### 12.4 Kill Dev Server (CLEANUP)
+
+**Clean up dev server started in Step 3:**
+
+```bash
+# Kill by stored PID
+if [ -f .harness/.dev_server_pid ]; then
+  kill $(cat .harness/.dev_server_pid) 2>/dev/null || true
+  rm .harness/.dev_server_pid
+fi
+
+# Also kill any processes on dev ports as backup
+lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+```
+
+### 12.5 Check for More Features
 
 **Check for more features:**
 - If pending features remain AND turn budget allows → loop back to Step 5
 - Otherwise → end session with summary
 
-**Output to user:**
+### 12.6 Output to User
+
 ```
 🎉 Session [N] Complete!
 
 ✅ Implemented: [X] feature(s)
 ✅ All tests passed
 ✅ Git commits created
+✅ META ticket updated
+✅ Dev server stopped
 
 📊 Progress: [X] of [Y] features complete
 
