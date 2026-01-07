@@ -528,12 +528,36 @@ Read META issue for session history.
 
 **IMPORTANT: Track the dev server so it can be killed at session end.**
 
-### 3.1 Kill Any Existing Dev Server First
+### 3.1 Kill Any Existing Dev Servers First (MANDATORY)
+
+**CRITICAL: Always start with a clean slate to prevent port accumulation!**
 
 ```bash
-# Kill any existing processes on common dev ports
+echo "🧹 Cleaning up any existing dev servers..."
+
+# Kill any existing processes on common dev ports (3000-3003)
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+lsof -ti:3002 | xargs kill -9 2>/dev/null || true
+lsof -ti:3003 | xargs kill -9 2>/dev/null || true
+
+# Also kill any node processes running nuxt as backup
+pkill -f "nuxt dev" 2>/dev/null || true
+
+# Remove stale PID file if exists
+rm -f .harness/.dev_server_pid
+
+# Brief pause to ensure processes are terminated
+sleep 1
+
+# Verify ports are free
+for port in 3000 3001 3002 3003; do
+  if lsof -ti:$port >/dev/null 2>&1; then
+    echo "⚠️ WARNING: Port $port still in use after cleanup"
+  fi
+done
+
+echo "✅ Dev server cleanup complete"
 ```
 
 ### 3.2 Start Dev Server in Background
@@ -885,21 +909,32 @@ Update session.json:
 }
 ```
 
-### 12.4 Kill Dev Server (CLEANUP)
+### 12.4 Kill Dev Server (MANDATORY CLEANUP)
 
-**Clean up dev server started in Step 3:**
+**CRITICAL: Always clean up dev servers at session end to prevent port accumulation!**
 
 ```bash
-# Kill by stored PID
+echo "🧹 Cleaning up dev servers at session end..."
+
+# Kill by stored PID first (most reliable)
 if [ -f .harness/.dev_server_pid ]; then
   kill $(cat .harness/.dev_server_pid) 2>/dev/null || true
   rm .harness/.dev_server_pid
 fi
 
-# Also kill any processes on dev ports as backup
+# Kill any processes on dev ports 3000-3003 as backup
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+lsof -ti:3002 | xargs kill -9 2>/dev/null || true
+lsof -ti:3003 | xargs kill -9 2>/dev/null || true
+
+# Also kill any node processes running nuxt as final backup
+pkill -f "nuxt dev" 2>/dev/null || true
+
+echo "✅ Dev server cleanup complete"
 ```
+
+**Why this matters**: Without cleanup, each session starts a new dev server on an incrementing port (3000 → 3001 → 3002). This wastes resources and can cause confusion when testing.
 
 ### 12.5 Check for More Features
 
