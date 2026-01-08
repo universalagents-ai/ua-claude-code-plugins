@@ -345,24 +345,71 @@ AskUserQuestion: {
 
 ## Init Step 5: Create Linear Issues (Command executes MCP)
 
-**For each feature, create issue:**
+**Reference**: Load `testable-increment-patterns` skill for ticket grouping guidance.
+
+### 5.1 Parse Build Sequence for Ticket Boundaries
+
+Scan the spec's Build Sequence section for `<!-- Ticket N: Title -->` annotations:
+
+```markdown
+<!-- Ticket 1: Block Card Grid -->
+### Step 1: Create BlockCard component...
+### Step 2: Add grid layout...
+
+<!-- Ticket 2: Block Overlay System -->
+### Step 3: Create overlay modal...
+```
+
+If annotations exist, use them to group steps into tickets.
+If no annotations, group by user-testable capability (3-6 hours of work each).
+
+### 5.2 Ticket Granularity Strategy
+
+**CRITICAL**: Create tickets for testable milestones, NOT file-level steps.
+
+**Grouping rules**:
+1. Each ticket = 1 testable milestone (not 1 file)
+2. Target 3-6 hours of work per ticket
+3. Browser-verifiable outcome REQUIRED
+4. Include "Test: Navigate to X, verify Y" in acceptance criteria
+
+**Target**: 4-7 tickets per feature (NOT 14+)
+
+### 5.3 Create Tickets
+
+**For each testable increment, create issue:**
 
 ```
 mcp__linear-server__create_issue with {
   team: "[team]",
   project: "[project]",
-  title: "[Feature Title]",
-  description: "[Full description with acceptance criteria]",
+  title: "[User Capability Title]",
+  description: "
+## What User Can Do After This
+[Description of user-facing capability]
+
+## Files
+| File | Action | Purpose |
+|------|--------|---------|
+| [files from this increment] |
+
+## Playwright Test
+\`\`\`
+browser_navigate('/path')
+browser_snapshot() -> verify [expectation]
+\`\`\`
+
+## Acceptance Criteria
+- [ ] [Testable criterion 1]
+- [ ] [Testable criterion 2]
+- [ ] Browser verification passes
+",
   priority: [1-4]
 }
 ```
 
-**Create granular tickets** - each should fit in a single context window:
-- Break complex features into sub-issues if needed
-- Aim for 1-2 hours of coding work per ticket
-- Clear acceptance criteria that can be tested
+### 5.4 Set Dependencies
 
-**Set dependencies:**
 ```
 mcp__linear-server__update_issue with {
   id: "[issue-id]",
@@ -580,27 +627,36 @@ sleep 5
 curl -s http://localhost:3000 > /dev/null && echo "✅ Dev server running on :3000" || echo "⚠️ Dev server may not be ready"
 ```
 
-## Code Step 4: Regression Testing (via browser-tester agent)
+## Code Step 4: Regression Testing (REQUIRED - via browser-tester agent)
 
-**For 1-2 completed features, launch browser-tester:**
+**CRITICAL**: Before implementing new features, verify existing work still functions.
+
+**For 1-2 completed increments, launch browser-tester:**
 
 ```
 Task: {
   subagent_type: "feature-harness:browser-tester",
-  description: "Regression test completed features",
-  prompt: "Verify these completed features still work:
+  description: "Regression test completed increments",
+  prompt: "REQUIRED: Verify these completed increments still work:
 
-  1. [Feature 1]: URL [url], check [criteria]
-  2. [Feature 2]: URL [url], check [criteria]
+  1. [Increment 1]: URL [url], Playwright test: [from ticket]
+  2. [Increment 2]: URL [url], Playwright test: [from ticket]
 
-  Navigate to each, take snapshots, verify functionality, check console/network for errors.
+  For each:
+  1. Navigate to the URL
+  2. Execute the original Playwright test
+  3. Take screenshot
+  4. Check console for errors
+
   Return: PASS (all working) or FAIL (with details of what's broken)"
 }
 ```
 
-**NOTE**: This is a proof-of-concept. If browser-tester can't access Playwright MCP, this step may need adjustment.
+**If FAIL:**
+- Stop coding workflow immediately
+- Fix regression first
+- Do NOT proceed to new features with broken existing work
 
-**If FAIL:** Stop coding workflow, fix regression first.
 **If PASS:** Continue to Step 5.
 
 ## Code Step 5: Select Next Feature
@@ -629,6 +685,10 @@ Update session.json with currentFeatureId.
 
 ## Code Step 7: Implement Feature (via feature-implementer agents)
 
+**IMPORTANT**: Each ticket now spans MULTIPLE files (vertical slice). The feature-implementer should expect to create/modify all files in the ticket's file list.
+
+**Reference**: The ticket description includes the Playwright test to run after implementation.
+
 **PARALLEL IMPLEMENTATION**: Launch up to 3 feature-implementer agents simultaneously for non-conflicting features.
 
 **Check for parallelizable features:**
@@ -639,55 +699,90 @@ Update session.json with currentFeatureId.
 ```
 Task: {
   subagent_type: "feature-harness:feature-implementer",
-  description: "Implement [Feature 1]",
-  prompt: "Implement this feature:
+  description: "Implement [Testable Increment]",
+  prompt: "Implement this testable increment:
 
-  Title: [title]
-  Description: [description]
+  Title: [User Capability Title]
+  Description: [What user can DO after this]
+
+  ## Files to Create/Modify
+  | File | Action | Purpose |
+  |------|--------|---------|
+  [ALL files from the ticket - types, store, components together]
+
+  ## Playwright Test (REQUIRED)
+  After implementation, this test MUST pass:
+  \`\`\`
+  browser_navigate('/path')
+  browser_snapshot() -> verify [expectation]
+  \`\`\`
+
   Acceptance Criteria:
   - [criterion 1]
   - [criterion 2]
+  - Browser verification passes
 
   Related components: [from codebase-inventory]
   Implementation strategy: [promote_prototype | build_new]
   Patterns to follow: [from CLAUDE.md]
 
-  Files to create/modify: [list]
-
-  Return: SUCCESS with files changed, or BLOCKED with reason"
+  Return: SUCCESS with files changed + Playwright test result, or BLOCKED with reason"
 }
 ```
 
-**For parallel execution (if 3 non-conflicting features available):**
+**For parallel execution (if 3 non-conflicting increments available):**
 
 ```
 // Launch all 3 in single message
-Task: feature-implementer for Feature A
-Task: feature-implementer for Feature B
-Task: feature-implementer for Feature C
+Task: feature-implementer for Increment A
+Task: feature-implementer for Increment B
+Task: feature-implementer for Increment C
 ```
 
 Wait for all to complete.
 
-## Code Step 8: Browser Verification (via browser-tester agent)
+## Code Step 8: Browser Verification (REQUIRED - via browser-tester agent)
+
+**CRITICAL**: Browser verification is REQUIRED for every increment. Do NOT proceed to commit if this step fails.
+
+**Reference**: Use the Playwright test from the ticket description.
 
 ```
 Task: {
   subagent_type: "feature-harness:browser-tester",
-  description: "Verify new feature implementation",
-  prompt: "Verify this newly implemented feature:
+  description: "Verify testable increment",
+  prompt: "REQUIRED: Verify this newly implemented increment passes its Playwright test.
 
-  Feature: [title]
-  URL: [url to test]
+  Increment: [User Capability Title]
+  URL: [url from ticket's Playwright test]
 
-  Test cases:
-  - [test 1]
-  - [test 2]
+  ## Playwright Test (from ticket)
+  \`\`\`
+  browser_navigate('/path')
+  browser_snapshot() -> verify [expectation]
+  \`\`\`
 
-  Take screenshots, check console, verify interactions work.
-  Return: PASS or FAIL with details"
+  ## Verification Steps
+  1. Navigate to the URL
+  2. Execute the test steps
+  3. Take screenshot for evidence
+  4. Check console for errors
+  5. Verify all acceptance criteria met
+
+  Return: PASS (with screenshot) or FAIL (with details of what's broken)
+
+  **If FAIL**: Do NOT proceed to commit. Create checkpoint and fix the issue first."
 }
 ```
+
+**If browser verification FAILS:**
+1. Create checkpoint in `.harness/checkpoints/[timestamp].json`
+2. Update session.json to status: "checkpoint"
+3. Add Linear comment with failure details
+4. Fix the issue before proceeding
+5. Re-run browser verification
+
+**Only proceed to Step 9 (tests) and Step 10 (commit) if browser verification PASSES.**
 
 ## Code Step 9: Run Automated Tests
 

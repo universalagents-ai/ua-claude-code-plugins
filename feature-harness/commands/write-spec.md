@@ -388,6 +388,15 @@ Agent 1 - Minimal Changes Approach:
     - Minimal new code
     - Conservative changes
     - Low risk approach
+
+    ## CRITICAL: Vertical Slice Chunking
+    Reference the `testable-increment-patterns` skill for chunking guidance.
+    - Each build step must deliver ONE working user capability
+    - Include ALL layers (types, state, UI) needed for that capability
+    - Order by user value (most critical flows first)
+    - Each step must be independently testable via Playwright
+    - Target 4-8 steps, NOT 14+ file-level steps
+    - Use `<!-- Ticket N: Title -->` annotations for ticket grouping
 - model: sonnet
 - run_in_background: true
 
@@ -413,6 +422,15 @@ Agent 2 - Clean Architecture Approach:
     - Optimal component structure
     - Future-proof design
     - Clean separation of concerns
+
+    ## CRITICAL: Vertical Slice Chunking
+    Reference the `testable-increment-patterns` skill for chunking guidance.
+    - Each build step must deliver ONE working user capability
+    - Include ALL layers (types, state, UI) needed for that capability
+    - Order by user value (most critical flows first)
+    - Each step must be independently testable via Playwright
+    - Target 4-8 steps, NOT 14+ file-level steps
+    - Use `<!-- Ticket N: Title -->` annotations for ticket grouping
 - model: sonnet
 - run_in_background: true
 
@@ -439,6 +457,15 @@ Agent 3 - Validation Perspective:
     - Type compatibility
     - CSS/Tailwind compliance
     - API contract compatibility
+
+    ## CRITICAL: Validate Vertical Slice Chunking
+    Reference the `testable-increment-patterns` skill for chunking validation.
+    Validate that the proposed build sequence:
+    - Has 4-8 testable increments (not 14+ file-level steps)
+    - Each step is browser-testable via Playwright
+    - Related files are grouped together (types + store + component)
+    - No layer-only steps (no "create all types" steps)
+    - Each step produces visible browser output
 - model: sonnet
 - run_in_background: true
 ```
@@ -495,17 +522,22 @@ If user wants adjustments, discuss and re-invoke relevant architect if needed.
 
 **Goal**: Generate and write the feature specification file.
 
-### Step 5.1: Load Spec Writing Skill
+### Step 5.1: Load Spec Writing Skills
 
-**IMPORTANT**: Reference the `spec-writing-best-practices` skill for consistent spec formatting.
+**IMPORTANT**: Reference these skills for consistent spec formatting:
 
-The skill provides guidance on:
-- Spec structure and required sections
-- Decisive language (avoid "could", "might", "consider")
-- Exact file paths with line references
-- Table format for component inventory
-- Atomic build sequence steps
-- Given/When/Then test cases
+1. **`spec-writing-best-practices`** - Spec structure and formatting:
+   - Spec structure and required sections
+   - Decisive language (avoid "could", "might", "consider")
+   - Exact file paths with line references
+   - Table format for component inventory
+   - Given/When/Then test cases
+
+2. **`testable-increment-patterns`** - Vertical slice chunking:
+   - Build sequence as testable increments (4-8 steps)
+   - Grouping related files together
+   - Playwright test descriptions per step
+   - Ticket boundary annotations
 
 ### Step 5.2: Create Directory
 
@@ -574,11 +606,26 @@ Combine all gathered information following the spec-writing-best-practices skill
 
 ## Build Sequence
 
-1. **[Step Title]** - [What to build]
-   - Files: [specific files]
-   - Test: [how to verify]
+**Reference**: `testable-increment-patterns` skill for vertical slice guidance.
+**Target**: 4-8 testable increments (NOT 14+ file-level steps).
 
-[Continue for 8-16 atomic steps]
+<!-- Ticket 1: [Ticket Title] -->
+### 1. [User Capability Title] - [What user can DO]
+
+**Files:**
+| File | Action | Purpose |
+|------|--------|---------|
+| [path] | Create/Modify | [why] |
+
+**Playwright Test:**
+```
+browser_navigate('/path')
+browser_snapshot() -> verify [expectation]
+```
+
+**Acceptance:** [Testable criterion]
+
+[Continue for 4-8 testable increments - group related files together]
 
 ## Test Cases
 

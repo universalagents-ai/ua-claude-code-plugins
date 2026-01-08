@@ -154,15 +154,34 @@ Return architecture in this format (adapt sections based on perspective):
 
 ### Build Sequence
 
-1. **[Step Title]** - [What to build]
-   - Files: [specific files]
-   - Test: [how to verify]
+**CRITICAL**: Break feature into **vertical slices** that deliver testable user capabilities.
+Each step must be browser-testable via Playwright. Target 4-8 steps per feature.
 
-2. **[Step Title]** - [What to build]
-   - Files: [specific files]
-   - Test: [how to verify]
+Reference the `testable-increment-patterns` skill for detailed guidance.
 
-[Continue for 8-16 steps]
+<!-- Ticket 1: [Ticket Title] -->
+1. **[User Capability Title]** - [What user can DO after this step]
+   - Files: [ALL files needed - types + store + component grouped together]
+   - Playwright Test:
+     ```
+     browser_navigate('/path')
+     browser_click('element')
+     browser_snapshot() -> verify [expectation]
+     ```
+   - Acceptance: [Testable criterion]
+
+<!-- Ticket 2: [Ticket Title] -->
+2. **[User Capability Title]** - [What user can DO after this step]
+   - Files: [ALL files needed - grouped vertically]
+   - Playwright Test: [Specific test steps]
+   - Acceptance: [Testable criterion]
+
+[Continue for 4-8 testable increments - NOT 14+ file-level steps]
+
+**Grouping Rules**:
+- Group related files into single steps (types + store + component = 1 step)
+- Each step produces visible browser output
+- Use `<!-- Ticket N: Title -->` comments to annotate ticket boundaries
 
 ### Reusable Elements to Leverage
 
@@ -193,3 +212,7 @@ Return architecture in this format (adapt sections based on perspective):
 - **No human interaction** - Execute autonomously and return results
 - **Complete within 2-3 minutes** - Focused design, not exhaustive analysis
 - **Coordinate with parallel agents** - Your perspective will be merged with others
+- **CRITICAL: Vertical slices only** - Each build step must be Playwright-testable
+- **Group related files** - Types + store + component = 1 step, not 3 steps
+- **Target 4-8 steps** - Not 14+ file-level steps
+- **Reference `testable-increment-patterns` skill** - For detailed chunking guidance

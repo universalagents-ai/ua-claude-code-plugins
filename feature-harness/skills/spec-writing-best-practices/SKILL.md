@@ -74,20 +74,46 @@ Each step must be:
 1. **Atomic** - Completable in isolation
 2. **Testable** - Has clear success criteria
 3. **Ordered** - Dependencies come first
-4. **Sized** - Roughly equal effort per step
+4. **Sized** - Roughly equal effort per step (3-6 hours)
+5. **User-facing** - Delivers visible functionality in the browser
+6. **Vertical** - Complete thin slice end-to-end (not layers)
+
+**Reference**: See `testable-increment-patterns` skill for detailed vertical slice guidance.
 
 ```markdown
-**Good Build Sequence:**
-1. Create ProtoBlockCard.vue component with props interface
-2. Add hover state and ellipsis menu trigger
-3. Create ProtoEllipsisMenu.vue with menu items
-4. Integrate card into MainContent grid
-5. Add Playwright tests for card interactions
+**Good Build Sequence (Vertical Slices):**
+1. Block Card Grid - Cards appear on canvas with hover menu
+   - Files: types, store, BlockCard.vue, BlockMenu.vue
+   - Test: Navigate to /block-proto, verify cards render, hover shows menu
 
-**Bad Build Sequence:**
-1. Build the whole UI (too vague, not atomic)
-2. Add tests (too late, not specific)
+2. Block Overlay System - Click card opens overlay modal
+   - Files: BlockOverlay.vue, click handler, overlay state
+   - Test: Click card, verify overlay opens with content
+
+3. State Integration - Selection persists across interactions
+   - Files: selection state, visual indicators
+   - Test: Select items, refresh, verify selection maintained
+
+**Bad Build Sequence (Layer-Based):**
+1. Create all TypeScript types (not testable in browser)
+2. Create Pinia store (not testable in browser)
+3. Create BlockCard component (can't test until wired)
+4. Create BlockMenu component (can't test until wired)
+5. Wire together (finally testable - too late!)
 ```
+
+### Vertical Slice Approach
+
+Each build step should deliver a **complete vertical slice** that can be tested in the browser:
+
+| Layer-Based (BAD) | Vertical-Slice (GOOD) |
+|-------------------|----------------------|
+| Types first | Types + Store + Component together |
+| Store second | Grouped by user capability |
+| Components third | Each step browser-testable |
+| Wire last | Playwright verification per step |
+
+**Key Principle**: If a step can't be verified with `browser_navigate` + `browser_snapshot`, it's too granular.
 
 ### Document What NOT to Change
 
@@ -148,11 +174,15 @@ Before finalizing a spec, verify:
 
 - [ ] All file paths are absolute and complete
 - [ ] Component inventory uses table format
-- [ ] Build sequence has 8-16 atomic steps
+- [ ] Build sequence has 4-8 testable increments (not 14+ file-level steps)
+- [ ] Each step includes Playwright test description
+- [ ] Each step produces visible browser output
+- [ ] Related files grouped together (types + store + component)
 - [ ] Test cases cover happy path + 2-3 edge cases
 - [ ] Success criteria are checkbox format
 - [ ] Out of scope section exists
 - [ ] No ambiguous language ("maybe", "could", "consider")
+- [ ] No layer-only steps (no "create all types" steps)
 
 ## Common Spec Anti-Patterns
 
@@ -188,3 +218,4 @@ Before finalizing a spec, verify:
 
 For detailed patterns and examples, consult:
 - **`references/spec-template.md`** - Complete spec template to copy
+- **`testable-increment-patterns` skill** - Vertical slice chunking patterns
