@@ -1,5 +1,5 @@
 ---
-description: "Main Feature Harness command - detects session state and launches appropriate agent (Initializer for Session 1, Coder for Session 2+)"
+description: "Main Feature Harness command - detects session state and routes to appropriate workflow (Completed → new feature, Ready → coding, No session → initialization)"
 argument-hint: "[--specs-dir <path>]"
 allowed-tools:
   - Read
@@ -29,9 +29,9 @@ ORCHESTRATOR (this command):
 ├── Linear MCP operations
 ├── Git operations
 ├── Artifact generation
+├── Playwright browser testing (direct MCP calls)
 └── Agent coordination:
     ├── codebase-scanner → Autonomous codebase analysis
-    ├── browser-tester → Playwright verification (POC)
     └── feature-implementer → Core coding work (can run parallel)
 ```
 
@@ -60,7 +60,10 @@ if .harness/session.json does NOT exist:
 elif session.status == "checkpoint" OR "waiting_human":
   → RESUME WORKFLOW (handled by resume agent)
 
-elif session.status == "ready" OR "completed":
+elif session.status == "completed":
+  → COMPLETED SESSION WORKFLOW (new feature selection)
+
+elif session.status == "ready":
   → CODING WORKFLOW (Session 2+)
 
 else:
@@ -69,9 +72,128 @@ else:
 
 ---
 
+# COMPLETED SESSION WORKFLOW
+
+Execute when `.harness/session.json` exists AND `status == "completed"`.
+
+**This workflow handles the transition between completed features and new ones.**
+
+## Completed Step 1: Acknowledge Previous Completion
+
+**Output to user:**
+```
+✅ Previous feature '[session.feature]' completed successfully!
+
+Session [N] finished:
+- Spec: [session.specPath]
+- Issues: [X] completed
+- Last commit: [session.lastCommitHash]
+```
+
+## Completed Step 2: Archive Old Session
+
+**Create timestamped backups of completed session:**
+```bash
+cd "$(git rev-parse --show-toplevel)"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+# Create archive directory
+mkdir -p .harness/archive
+
+# Archive completed session files
+mv .harness/session.json ".harness/archive/session-${TIMESTAMP}.json"
+mv .harness/progress.txt ".harness/archive/progress-${TIMESTAMP}.txt"
+```
+
+## Completed Step 3: Scan for New Specs
+
+**Check for unimplemented specs:**
+```
+Glob: "specs/features/**/*.md"
+```
+
+**For each spec found:**
+1. Check if spec matches any completed session in `.harness/archive/`
+2. Build list of specs that haven't been implemented yet
+3. Check if user passed a specific spec via arguments
+
+**If user specified a spec (e.g., `@specs/features/phase-3.md`):**
+- Use that spec directly
+- Skip the selection prompt
+
+## Completed Step 4: User Selects Next Feature
+
+**If multiple unimplemented specs exist:**
+
+```
+AskUserQuestion: {
+  questions: [{
+    question: "Which feature would you like to implement next?",
+    header: "Feature",
+    multiSelect: false,
+    options: [
+      // List unimplemented specs
+      { label: "[spec-1-title] (Recommended)", description: "specs/features/spec-1.md" },
+      { label: "[spec-2-title]", description: "specs/features/spec-2.md" },
+      { label: "Exit - no new features", description: "End session without starting new work" }
+    ]
+  }]
+}
+```
+
+**If only one unimplemented spec:**
+```
+AskUserQuestion: {
+  questions: [{
+    question: "Found 1 unimplemented spec: '[title]'. Start implementation?",
+    header: "Confirm",
+    multiSelect: false,
+    options: [
+      { label: "Yes, start implementation (Recommended)", description: "[spec path]" },
+      { label: "No, exit", description: "End session" }
+    ]
+  }]
+}
+```
+
+**If no unimplemented specs found:**
+```
+Output: "🎉 All specs have been implemented! No new features to build."
+Output: "Create new spec files in specs/features/ and run /feature-harness again."
+→ EXIT
+```
+
+## Completed Step 5: Store Selected Spec
+
+**Before continuing to initialization, store the user's selection for Init Step 2:**
+
+```
+selectedSpecPath = [user's chosen spec path]
+selectedSpecTitle = [parsed from spec file]
+previousFeature = [session.feature from archived session]
+linearProjectId = [from .harness/.linear_project.json - reuse existing]
+```
+
+## Completed Step 6: Continue to Initialization Workflow
+
+**Hand off to INITIALIZATION WORKFLOW (Session 1)** with context:
+- The selected spec path is known
+- Linear project can be reused (cache exists in `.linear_project.json`)
+- META issue can receive a new comment about the new feature
+
+The initialization workflow will:
+- Run environment check (Step 0)
+- Check codebase inventory freshness (Step 1) - may reuse if <24h old
+- Read the selected spec (Step 2)
+- Continue through remaining initialization steps
+
+→ **Continue to: INITIALIZATION WORKFLOW (Session 1)**
+
+---
+
 # INITIALIZATION WORKFLOW (Session 1)
 
-Execute when `.harness/session.json` does NOT exist.
+Execute when `.harness/session.json` does NOT exist OR after Completed Session Workflow.
 
 **This workflow runs entirely in the command** with agent assistance for focused tasks.
 
@@ -535,7 +657,7 @@ Output to user:
 
 # CODING WORKFLOW (Session 2+)
 
-Execute when `.harness/session.json` exists and status is "ready" or "completed".
+Execute when `.harness/session.json` exists and status is "ready".
 
 ## Code Step 1: Environment Check
 
@@ -627,37 +749,62 @@ sleep 5
 curl -s http://localhost:3000 > /dev/null && echo "✅ Dev server running on :3000" || echo "⚠️ Dev server may not be ready"
 ```
 
-## Code Step 4: Regression Testing (REQUIRED - via browser-tester agent)
+## Code Step 4: Regression Testing (REQUIRED - Orchestrator Executes Directly)
 
 **CRITICAL**: Before implementing new features, verify existing work still functions.
 
-**For 1-2 completed increments, launch browser-tester:**
+**NOTE**: Regression testing is performed by the orchestrator directly using Playwright MCP tools (NOT via browser-tester subagent). This is because subagents cannot access the Linear MCP tools needed for full workflow integration.
 
-```
-Task: {
-  subagent_type: "feature-harness:browser-tester",
-  description: "Regression test completed increments",
-  prompt: "REQUIRED: Verify these completed increments still work:
+**For 1-2 completed increments, perform regression testing directly:**
 
-  1. [Increment 1]: URL [url], Playwright test: [from ticket]
-  2. [Increment 2]: URL [url], Playwright test: [from ticket]
+### 4.1 Identify Completed Increments to Test
 
-  For each:
-  1. Navigate to the URL
-  2. Execute the original Playwright test
-  3. Take screenshot
-  4. Check console for errors
+From `features.json`, identify 1-2 recently completed features with browser-testable outcomes.
 
-  Return: PASS (all working) or FAIL (with details of what's broken)"
-}
-```
+### 4.2 Execute Regression Tests Directly
 
-**If FAIL:**
+For each completed increment:
+
+1. **Navigate to the URL**:
+   ```
+   mcp__playwright__browser_navigate: { url: "[URL from completed ticket]" }
+   ```
+
+2. **Take a snapshot** to verify page structure:
+   ```
+   mcp__playwright__browser_snapshot: {}
+   ```
+   Parse snapshot to verify expected elements are present.
+
+3. **Take a screenshot** for evidence:
+   ```
+   mcp__playwright__browser_take_screenshot: {
+     filename: ".harness/regression-[timestamp]-[feature].png"
+   }
+   ```
+
+4. **Check console for errors**:
+   ```
+   mcp__playwright__browser_console_messages: { level: "error" }
+   ```
+   If errors found, document them.
+
+5. **Check network requests** if API verification needed:
+   ```
+   mcp__playwright__browser_network_requests: {}
+   ```
+
+### 4.3 Evaluate Regression Results
+
+**If ALL tests PASS:**
+- Log: "✅ Regression tests passed for [N] completed features"
+- Continue to Step 5
+
+**If ANY test FAILS:**
 - Stop coding workflow immediately
+- Document which feature(s) failed and why
 - Fix regression first
 - Do NOT proceed to new features with broken existing work
-
-**If PASS:** Continue to Step 5.
 
 ## Code Step 5: Select Next Feature
 
@@ -741,44 +888,70 @@ Task: feature-implementer for Increment C
 
 Wait for all to complete.
 
-## Code Step 8: Browser Verification (REQUIRED - via browser-tester agent)
+## Code Step 8: Browser Verification (REQUIRED - Orchestrator Executes Directly)
 
 **CRITICAL**: Browser verification is REQUIRED for every increment. Do NOT proceed to commit if this step fails.
 
+**NOTE**: Browser verification is performed by the orchestrator directly using Playwright MCP tools (NOT via browser-tester subagent). This is because subagents cannot access the Linear MCP tools needed for full workflow integration.
+
 **Reference**: Use the Playwright test from the ticket description.
 
-```
-Task: {
-  subagent_type: "feature-harness:browser-tester",
-  description: "Verify testable increment",
-  prompt: "REQUIRED: Verify this newly implemented increment passes its Playwright test.
+### 8.1 Execute Browser Verification
 
-  Increment: [User Capability Title]
-  URL: [url from ticket's Playwright test]
+1. **Navigate to the feature URL**:
+   ```
+   mcp__playwright__browser_navigate: { url: "[URL from ticket's Playwright test]" }
+   ```
 
-  ## Playwright Test (from ticket)
-  \`\`\`
-  browser_navigate('/path')
-  browser_snapshot() -> verify [expectation]
-  \`\`\`
+2. **Take an accessibility snapshot** to verify page structure:
+   ```
+   mcp__playwright__browser_snapshot: {}
+   ```
+   Parse the snapshot to verify:
+   - Expected elements are present
+   - Component structure matches acceptance criteria
+   - Interactive elements are accessible
 
-  ## Verification Steps
-  1. Navigate to the URL
-  2. Execute the test steps
-  3. Take screenshot for evidence
-  4. Check console for errors
-  5. Verify all acceptance criteria met
+3. **Take a screenshot** for evidence:
+   ```
+   mcp__playwright__browser_take_screenshot: {
+     filename: ".harness/verification-[timestamp]-[feature].png"
+   }
+   ```
 
-  Return: PASS (with screenshot) or FAIL (with details of what's broken)
+4. **Check console for errors**:
+   ```
+   mcp__playwright__browser_console_messages: { level: "error" }
+   ```
+   Document any errors found.
 
-  **If FAIL**: Do NOT proceed to commit. Create checkpoint and fix the issue first."
-}
-```
+5. **Check network requests** to verify API calls:
+   ```
+   mcp__playwright__browser_network_requests: {}
+   ```
+   Verify expected API endpoints were called.
+
+6. **Interact with elements** if needed to verify functionality:
+   ```
+   mcp__playwright__browser_click: { element: "[description]", ref: "[ref]" }
+   ```
+
+### 8.2 Evaluate Verification Results
+
+**If browser verification PASSES:**
+- Log: "✅ Browser verification passed for [Feature Title]"
+- Proceed to Step 9 (tests) and Step 10 (commit)
 
 **If browser verification FAILS:**
 1. Create checkpoint in `.harness/checkpoints/[timestamp].json`
 2. Update session.json to status: "checkpoint"
-3. Add Linear comment with failure details
+3. Add Linear comment with failure details:
+   ```
+   mcp__linear-server__create_comment: {
+     issueId: "[feature issue ID]",
+     body: "## Browser Verification Failed\n\n[Details of failure]\n\nScreenshot: [path]"
+   }
+   ```
 4. Fix the issue before proceeding
 5. Re-run browser verification
 
@@ -1080,10 +1253,11 @@ echo "✅ Dev server cleanup complete"
 - Log to progress.txt
 - Continue with local artifact tracking
 
-## If browser-tester fails (POC limitation):
+## If Playwright MCP fails:
 - Create checkpoint
-- Log issue
-- Tell user manual testing may be needed
+- Log issue with specific Playwright error
+- Tell user manual browser testing may be needed
+- Continue with automated tests (Step 9) if possible
 
 ## If feature-implementer gets stuck:
 - Create checkpoint
