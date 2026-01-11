@@ -30,9 +30,9 @@ ORCHESTRATOR (this command):
 ├── Git operations
 ├── Artifact generation
 ├── Playwright browser testing (direct MCP calls)
+├── Skill loading (linear-ticket-creation, linear-ticket-implementation)
 └── Agent coordination:
-    ├── codebase-scanner → Autonomous codebase analysis
-    └── feature-implementer → Core coding work (can run parallel)
+    └── codebase-scanner → Autonomous codebase analysis
 ```
 
 **Why this matters**:
@@ -467,7 +467,17 @@ AskUserQuestion: {
 
 ## Init Step 5: Create Linear Issues (Command executes MCP)
 
-**Reference**: Load `testable-increment-patterns` skill for ticket grouping guidance.
+**MANDATORY**: Load the linear-ticket-creation skill before creating any tickets.
+
+```
+Skill: linear-ticket-creation
+```
+
+This skill MUST be loaded to ensure tickets are:
+- Comprehensive with implementation details
+- Properly linked to spec document locations (file:lines + section name)
+- Following vertical slice patterns
+- Including Playwright test specifications
 
 ### 5.1 Parse Build Sequence for Ticket Boundaries
 
@@ -819,6 +829,43 @@ mcp__linear-server__list_issues with {
 
 Check dependencies are met.
 
+### 5.2 Read and Understand Selected Ticket
+
+**CRITICAL**: Before proceeding, fully understand the ticket.
+
+1. **Get full ticket details**:
+   ```
+   mcp__linear-server__get_issue with {
+     id: "[issue-id]"
+   }
+   ```
+
+2. **Read the referenced spec document**:
+   - Extract spec file path and line references from ticket (format: `specs/features/file.md:45-78 (Section Name)`)
+   - Read the full spec section to understand context
+   - Understand where this ticket fits in the overall workflow
+
+3. **Ask clarifying questions if needed**:
+   If the ticket is unclear or has loose ends:
+   ```
+   AskUserQuestion: {
+     questions: [{
+       question: "[Specific clarification needed]",
+       header: "Clarify",
+       multiSelect: false,
+       options: [
+         { label: "Option A", description: "[What this means]" },
+         { label: "Option B", description: "[What this means]" }
+       ]
+     }]
+   }
+   ```
+
+4. **Check for blockers**:
+   - Are regression tests passing?
+   - Do previous tickets need updates first?
+   - Any dependencies not yet completed?
+
 ## Code Step 6: Update Linear Status
 
 ```
@@ -830,63 +877,53 @@ mcp__linear-server__update_issue with {
 
 Update session.json with currentFeatureId.
 
-## Code Step 7: Implement Feature (via feature-implementer agents)
+## Code Step 7: Implement Feature
 
-**IMPORTANT**: Each ticket now spans MULTIPLE files (vertical slice). The feature-implementer should expect to create/modify all files in the ticket's file list.
-
-**Reference**: The ticket description includes the Playwright test to run after implementation.
-
-**PARALLEL IMPLEMENTATION**: Launch up to 3 feature-implementer agents simultaneously for non-conflicting features.
-
-**Check for parallelizable features:**
-1. No shared file dependencies
-2. No blocking relationships
-3. Different areas of codebase
+**MANDATORY**: Load the linear-ticket-implementation skill before implementing.
 
 ```
-Task: {
-  subagent_type: "feature-harness:feature-implementer",
-  description: "Implement [Testable Increment]",
-  prompt: "Implement this testable increment:
-
-  Title: [User Capability Title]
-  Description: [What user can DO after this]
-
-  ## Files to Create/Modify
-  | File | Action | Purpose |
-  |------|--------|---------|
-  [ALL files from the ticket - types, store, components together]
-
-  ## Playwright Test (REQUIRED)
-  After implementation, this test MUST pass:
-  \`\`\`
-  browser_navigate('/path')
-  browser_snapshot() -> verify [expectation]
-  \`\`\`
-
-  Acceptance Criteria:
-  - [criterion 1]
-  - [criterion 2]
-  - Browser verification passes
-
-  Related components: [from codebase-inventory]
-  Implementation strategy: [promote_prototype | build_new]
-  Patterns to follow: [from CLAUDE.md]
-
-  Return: SUCCESS with files changed + Playwright test result, or BLOCKED with reason"
-}
+Skill: linear-ticket-implementation
 ```
 
-**For parallel execution (if 3 non-conflicting increments available):**
+### 7.1 Pre-Implementation Checklist
 
-```
-// Launch all 3 in single message
-Task: feature-implementer for Increment A
-Task: feature-implementer for Increment B
-Task: feature-implementer for Increment C
+Before writing any code:
+- [ ] Linear ticket fully read and understood (from Step 5.2)
+- [ ] Spec document section reviewed
+- [ ] Context within overall workflow clear
+- [ ] All clarifying questions answered
+- [ ] No blockers identified
+
+### 7.2 Implementation Approach
+
+Implement this single ticket in this session:
+- Follow the files list from the ticket
+- Create/modify files as specified
+- Follow patterns from codebase-inventory
+- Reference CLAUDE.md for project conventions
+
+### 7.3 Implementation Steps
+
+For each file in the ticket's file list:
+1. Read existing code if modifying
+2. Implement following ticket's specifications
+3. Ensure changes align with spec document
+4. Test incrementally where possible
+
+### 7.4 Quality Checks During Implementation
+
+After implementing each file:
+```bash
+# Check TypeScript compiles
+pnpm type-check
+
+# Check linting passes
+pnpm lint:fix
 ```
 
-Wait for all to complete.
+Fix any errors before proceeding to next file.
+
+**NOTE**: No parallel implementation. One ticket per session ensures quality and reduces context switching.
 
 ## Code Step 8: Browser Verification (REQUIRED - Orchestrator Executes Directly)
 
@@ -1259,7 +1296,7 @@ echo "✅ Dev server cleanup complete"
 - Tell user manual browser testing may be needed
 - Continue with automated tests (Step 9) if possible
 
-## If feature-implementer gets stuck:
+## If implementation gets stuck:
 - Create checkpoint
 - Preserve partial work
 - Clear guidance for resume
